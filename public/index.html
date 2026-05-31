@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title> AI Chat App</title>
+<style>
+    * {box-sizing: border-box; margin: 0; padding: 0; } 
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color:#f0f2f5; display: flex; flex-direction: column; height: 100vh; }
+    
+    /*HEader ai boxx*/
+    #summary-box { background: #e3f2fd; border-left: 5px solid #2196f3; padding: 15px; margin: 10px auto; width:95%; max-width: 600px; border-radius: 8px; font-style: italic; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: none; }
+    
+    /*the real main chat area*/
+    #messages { flex-grow: 1; overflow-y: auto; padding: 20px; max-width: 600px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; list-style: none; }
+
+    /*the individual chat bubbleses*/
+    .message-wrapper { display: flex; flex-direction: column; max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 15px; line-height: 1.4; word-wrap: break-word; }
+    .my-msg { align-self: flex-end; background-color: #0084ff; color: white; border-bottom-left-radius: 4px; }
+    .other-msg { align-self: flex-start; background-color: #e4e6eb; color: #050505; border-bottom-left-radius: 4px; }
+    .msg-user { font-size: 11px; margin-bottom: 3px; font-weight: bold; opacity: 0.7; }
+
+/*noww floating bottom kcontrol bar*/
+.controls { background: white; padding: 10px; border-top: 1px solid #ddd; display: flex; flex-direction: column; gap: 8px; width: 100% }
+.controls-inner { max-width: 600px; width: 100%; margin: 0 auto; display: flex; gap: 10px; }
+
+#form { flex-grow: 1; display: flex; gap: 8px; }
+#input { flex-grow: 1; padding: 12px; border: 1px solid #ccd0d5; border-radius: 20px; outline: none; font-size: 15px; }
+#input:focus { border-color: #0084ff; }
+
+button { background-color: #0084ff; color: white; border: none; padding: 0 20px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 14px; transition: background 0.2; }
+button:hover { background-color: #0066cc; }
+.ai-btn { background-color: #25d366; padding: 10px; }
+.ai-btn:hover { background-color: #20ba5a; }
+</style>
+    </head>
+    <body>
+        <div id="summary-box"></div>
+         <ul id="messages"></ul>
+
+         <div class="controls">
+     <div class="controls-inner">
+            <form id="form">
+         <input id="input" autocomplete="off" placeholder="Type a message..."/>
+         <button type="submit">Send</button>
+         </form>
+         <button class="ai-btn" onclick="requestSummary()">Summarize chat with ai</button>
+
+         </div>
+          </div>
+         <!-- now this line will be pullin the socket io tools-->
+         <script src="/socket.io/socket.io.js"></script>
+
+         <script>
+           var socket = io();
+           var form = document.getElementById('form');
+           var input = document.getElementById('input');
+   
+           //1.Ask for credentials on load
+          var username = prompt("What is your username?") || "Guest";
+          var roomCode = prompt("Enter a Chat Room Code (e.g., 'sercret123' or 'roomA'):") || "public";
+
+          //2. Instantly tell the server to place us in this private room room
+socket.emit('join room', roomCode);
+
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (input.value) {
+                socket.emit('chat message', { user: username, text: input.value});
+                input.value = '';
+            }
+           });
+
+           socket.on('chat message', (data) => {
+            var item = document.createElement('li');
+           
+           //lets check if the message belongs to you or someone else
+if (data.user === username) { 
+    item.className = "message-wrapper my-msg";
+
+} else {
+    item.className = "message-wrapper other-msg";
+}
+
+            item.innerHTML = `<div class="msg-user">${data.user}</div><div>${data.text}</div>`;          
+            
+            const msgBox = document.getElementById('messages');
+            msgBox.appendChild(item);
+
+            //automatically scroll down to newenst messages
+            msgBox.scrollTop = msgBox.scrollHeight;
+            
+           });
+
+           function requestSummary() {
+            socket.emit('summarize');            
+           }
+
+           socket.on('ai summary', (summary) => {
+            const box = document.getElementById('summary-box');
+            box.style.display = 'block';
+            box.textContent = "AI Summary: " + summary;
+        
+           });
+         </script>
+     </body>
+</html> 
