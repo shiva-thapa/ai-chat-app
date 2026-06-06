@@ -244,7 +244,7 @@ io.on('connection', (socket) => {
 
 
 //start server
-async funtion startServer() {
+async function startServer() {
   await connectDB();
   const PORT = process.env.PORT || 3000;
   server.listen(PORT,() => {
