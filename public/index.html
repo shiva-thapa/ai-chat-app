@@ -1,105 +1,193 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title> AI Chat App</title>
-<style>
-    * {box-sizing: border-box; margin: 0; padding: 0; } 
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color:#f0f2f5; display: flex; flex-direction: column; height: 100vh; }
-    
-    /*HEader ai boxx*/
-    #summary-box { background: #e3f2fd; border-left: 5px solid #2196f3; padding: 15px; margin: 10px auto; width:95%; max-width: 600px; border-radius: 8px; font-style: italic; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: none; }
-    
-    /*the real main chat area*/
-    #messages { flex-grow: 1; overflow-y: auto; padding: 20px; max-width: 600px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; list-style: none; }
 
-    /*the individual chat bubbleses*/
-    .message-wrapper { display: flex; flex-direction: column; max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 15px; line-height: 1.4; word-wrap: break-word; }
-    .my-msg { align-self: flex-end; background-color: #0084ff; color: white; border-bottom-left-radius: 4px; }
-    .other-msg { align-self: flex-start; background-color: #e4e6eb; color: #050505; border-bottom-left-radius: 4px; }
-    .msg-user { font-size: 11px; margin-bottom: 3px; font-weight: bold; opacity: 0.7; }
+<head>
+    <title>Ai chat app</title>
 
-/*noww floating bottom kcontrol bar*/
-.controls { background: white; padding: 10px; border-top: 1px solid #ddd; display: flex; flex-direction: column; gap: 8px; width: 100% }
-.controls-inner { max-width: 600px; width: 100%; margin: 0 auto; display: flex; gap: 10px; }
-
-#form { flex-grow: 1; display: flex; gap: 8px; }
-#input { flex-grow: 1; padding: 12px; border: 1px solid #ccd0d5; border-radius: 20px; outline: none; font-size: 15px; }
-#input:focus { border-color: #0084ff; }
-
-button { background-color: #0084ff; color: white; border: none; padding: 0 20px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 14px; transition: background 0.2; }
-button:hover { background-color: #0066cc; }
-.ai-btn { background-color: #25d366; padding: 10px; }
-.ai-btn:hover { background-color: #20ba5a; }
-</style>
-    </head>
-    <body>
-        <div id="summary-box"></div>
-         <ul id="messages"></ul>
-
-         <div class="controls">
-     <div class="controls-inner">
-            <form id="form">
-         <input id="input" autocomplete="off" placeholder="Type a message..."/>
-         <button type="submit">Send</button>
-         </form>
-         <button class="ai-btn" onclick="requestSummary()">Summarize chat with ai</button>
-
-         </div>
-          </div>
-         <!-- now this line will be pullin the socket io tools-->
-         <script src="/socket.io/socket.io.js"></script>
-
-         <script>
-           var socket = io();
-           var form = document.getElementById('form');
-           var input = document.getElementById('input');
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0;}
    
-           //1.Ask for credentials on load
-          var username = prompt("What is your username?") || "Guest";
-          var roomCode = prompt("Enter a Chat Room Code (e.g., 'sercret123' or 'roomA'):") || "public";
+   body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f0f2f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+   }
 
-          //2. Instantly tell the server to place us in this private room room
-socket.emit('join room', roomCode);
+   .container {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+   }
 
-          form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (input.value) {
-                socket.emit('chat message', { user: username, text: input.value});
-                input.value = '';
-            }
-           });
 
-           socket.on('chat message', (data) => {
-            var item = document.createElement('li');
-           
-           //lets check if the message belongs to you or someone else
-if (data.user === username) { 
-    item.className = "message-wrapper my-msg";
+   form { 
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
 
-} else {
-    item.className = "message-wrapper other-msg";
+   }
+   input {
+    padding: 12px;
+     border: 1px solid #ccd0d5;
+     border-radius: 8px;
+     font-size: 14px;
+   
+    }
+    button {
+backgound-color: #0084ff;
+color: white;
+border: none;
+padding: 12px;
+border-radius: 8px;
+font-weight: bold;
+cursor: pointer;
+font-size: 14px;
+transition: background 0.2s;
+
+
+    }
+button:hover {background-color: #0066cc; }
+.error { color: red; font-size: 14px; }
+.toggle-link {color: #0084ff; cursor: pointer; text-decoration: underline; }
+
+</style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Ai chat app</h1>
+
+        <!-- login  form-->
+         <form id="login-form">
+            <h2>Login</h2>
+            <input type="email" id="login-email" placeholder="Email" required>
+            <input type="password" id="login-password" placeholder="Password" required>
+<button type="submit">Login</button>
+<p id="login-error" class="error"></p>
+
+        </form>
+
+<!-- register form (initially hidden)-->
+<form id="register-form" style="display: none;">
+
+    <h2>Register</h2>
+    <input type="text" id="reg-username" placeholder="Username" required>
+    <input type="email" id="reg-email" placeholder="Email" required>
+    <input type="password" id="reg-password" placeholder="Password" required>
+    <button type="submit">Register</button>
+    <p id="reg-error" class="error"></p>
+</form>
+
+<p style="margin-top: 15px;">
+    <span id="toggle-text">Don't have an account? </span>
+    <span class="toggle-link " id="toggle-link">Register</span>
+
+</p>
+</div>
+
+<script>
+
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('reegister-form');
+    const toggleLink =document.getElementById('toggle-link');
+    const toggleText = document.getElementById('toggle-text');
+
+    //toggle between forms
+
+    toglleLink.addEventListener('click', () => {
+
+        if (loginForm.style.display === 'none') {
+loginForm.style.display = 'flex';
+registerForm.style.display = 'none';
+toggleText.textContent = "Don't have an accont?";
+toggleLink.textContent = "Refister";
+        } else {
+            loginForm.style.display = 'none';
+            registerForm.style.display = 'flex';
+            toggleText.textContent = "Already have an account?";
+            toggleLink.textContent = "Login";
+        }
+    });
+
+    //login
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+const email = document.getElementById('login-email').value;
+const password = document.getElementById('login-password').value;
+try {
+    const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+            });
+            if (res.ok) {
+                window.location.href = '/chat';
+                    } else { 
+                        const data = await res.json();
+                        document.getElementByid('login-error').textContent = data.error;
+               }
+
+} caatch (err) {
+    document.getElementById('login-error').textContent = 'login failed.';
+
 }
 
-            item.innerHTML = `<div class="msg-user">${data.user}</div><div>${data.text}</div>`;          
-            
-            const msgBox = document.getElementById('messages');
-            msgBox.appendChild(item);
+    });
 
-            //automatically scroll down to newenst messages
-            msgBox.scrollTop = msgBox.scrollHeight;
-            
-           });
+    //register
+    registerForm.addEventlistener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('reg-username').value;
+        const email = document.getElementById('reg-email').value;
+        const password = document.getElementById('reg-password').value;
+        try {
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password }),
 
-           function requestSummary() {
-            socket.emit('summarize');            
+            });
+           if (res.ok) {
+            alert('Registration successful! Please login.');
+            //switch to login form
+            loginForm.style.display = 'flex';
+            registerForm.style.display = 'none';
+            toggleText.textContent = "Don't have an account?";
+            toggleLink.textContent = "Register";
+
+           } else {
+            const data = await res.json();
+            document.getElementById('reg-error').textContent = data.error;
+
            }
+                   } catch (err) {
+                    document.getElementById('reg-error').textContent = 'Registration failed.';
+                   }
 
-           socket.on('ai summary', (summary) => {
-            const box = document.getElementById('summary-box');
-            box.style.display = 'block';
-            box.textContent = "AI Summary: " + summary;
-        
-           });
-         </script>
-     </body>
-</html> 
+    }); 
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
