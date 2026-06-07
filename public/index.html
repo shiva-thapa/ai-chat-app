@@ -3,7 +3,7 @@
 
 <head>
     <title>Ai chat app</title>
-
+<link rel="icon" href="data:,">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0;}
    
@@ -95,7 +95,8 @@ button:hover {background-color: #0066cc; }
 </div>
 
 <script>
-
+    document.addEventListener('DOMContentLoaded', function() {
+console.log(someElement);  // if this prints null, the selector is wrong
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('reegister-form');
     const toggleLink =document.getElementById('toggle-link');
@@ -144,7 +145,7 @@ try {
     });
 
     //register
-    registerForm.addEventlistener('submit', async (e) => {
+    registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('reg-username').value;
         const email = document.getElementById('reg-email').value;
@@ -174,6 +175,7 @@ try {
                    }
 
     }); 
+    });
 </script>
 </body>
 </html>
