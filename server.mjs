@@ -150,6 +150,7 @@ app.get('/chat', (req, res) => {
 
 
 //socket.io authentication middleware
+/*
 io.use(async (socket, next) => {
   const rawCookies = socket.handshake.headers.cookie || '';
   console.log('Socket auth – raw cookies:', rawCookies); // ADD THIS
@@ -176,7 +177,13 @@ io.use(async (socket, next) => {
     next(new Error('Invalid token'));
   }
 });
+*/
 
+io.use((socket, next) => {
+  // Temporary: skip auth to test connectivity
+  socket.username = 'test_user'; // dummy
+  next();
+});
 //socket.io events
 io.on('connection', (socket) => {
   console.log(`User ${socket.username} connected`);
