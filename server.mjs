@@ -146,22 +146,34 @@ app.get('/chat', (req, res) => {
   } catch (err) {
     res.redirect('/');
   }
-})
+});
 
 
 //socket.io authentication middleware
 io.use(async (socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) return next(new Error('Authentication error'));
+  const rawCookies = socket.handshake.headers.cookie || '';
+  console.log('Socket auth – raw cookies:', rawCookies); // ADD THIS
+  
+  const cookies = rawCookies.split(';').map(c => c.trim());
+  const tokenCookie = cookies.find(row => row.startsWith('token='));
+  
+  if (!tokenCookie) {
+    console.log('Socket auth failed: no token cookie');
+    return next(new Error('Authentication error: no token cookie'));
+  }
+  
+  const token = tokenCookie.split('=')[1];
+  console.log('Socket auth – token found, verifying...');
+  
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     socket.userId = decoded.userId;
     socket.username = decoded.username;
+    console.log(`Socket authenticated: ${socket.username}`);
     next();
-
   } catch (err) {
+    console.log('Socket auth error:', err.message);
     next(new Error('Invalid token'));
-
   }
 });
 
