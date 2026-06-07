@@ -95,88 +95,74 @@ button:hover {background-color: #0066cc; }
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-console.log(someElement);  // if this prints null, the selector is wrong
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('reegister-form');
-    const toggleLink =document.getElementById('toggle-link');
-    const toggleText = document.getElementById('toggle-text');
+   
+  const loginForm = document.getElementById('login-form');
+  const registerForm = document.getElementById('register-form');
+  const toggleLink = document.getElementById('toggle-link');
+  const toggleText = document.getElementById('toggle-text');
 
-    //toggle between forms
+  toggleLink.addEventListener('click', () => {
+    if (loginForm.style.display === 'none') {
+      loginForm.style.display = 'flex';
+      registerForm.style.display = 'none';
+      toggleText.textContent = "Don't have an account?";
+      toggleLink.textContent = "Register";
+    } else {
+      loginForm.style.display = 'none';
+      registerForm.style.display = 'flex';
+      toggleText.textContent = "Already have an account?";
+      toggleLink.textContent = "Login";
+    }
+  });
 
-    toggleLink.addEventListener('click', () => {
-
-        if (loginForm.style.display === 'none') {
-loginForm.style.display = 'flex';
-registerForm.style.display = 'none';
-toggleText.textContent = "Don't have an accont?";
-toggleLink.textContent = "Refister";
-        } else {
-            loginForm.style.display = 'none';
-            registerForm.style.display = 'flex';
-            toggleText.textContent = "Already have an account?";
-            toggleLink.textContent = "Login";
-        }
-    });
-
-    //login
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-const email = document.getElementById('login-email').value;
-const password = document.getElementById('login-password').value;
-try {
-    const res = await fetch('/api/login', {
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    try {
+      const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-            });
-            if (res.ok) {
-                window.location.href = '/chat';
-                    } else { 
-                        const data = await res.json();
-                        document.getElementByid('login-error').textContent = data.error;
-               }
+      });
+      if (res.ok) {
+        window.location.href = '/chat';
+      } else {
+        const data = await res.json();
+        document.getElementById('login-error').textContent = data.error;
+      }
+    } catch (err) {
+      document.getElementById('login-error').textContent = 'Login failed.';
+    }
+  });
 
-} catch (err) {
-    document.getElementById('login-error').textContent = 'login failed.';
-
-}
-
-    });
-
-    //register
-    registerForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('reg-username').value;
-        const email = document.getElementById('reg-email').value;
-        const password = document.getElementById('reg-password').value;
-        try {
-            const res = await fetch('/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email, password }),
-
-            });
-           if (res.ok) {
-            alert('Registration successful! Please login.');
-            //switch to login form
-            loginForm.style.display = 'flex';
-            registerForm.style.display = 'none';
-            toggleText.textContent = "Don't have an account?";
-            toggleLink.textContent = "Register";
-
-           } else {
-            const data = await res.json();
-            document.getElementById('reg-error').textContent = data.error;
-
-           }
-                   } catch (err) {
-                    document.getElementById('reg-error').textContent = 'Registration failed.';
-                   }
-
-    }); 
-    });
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('reg-username').value;
+    const email = document.getElementById('reg-email').value;
+    const password = document.getElementById('reg-password').value;
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password }),
+      });
+      if (res.ok) {
+        alert('Registration successful! Please login.');
+        loginForm.style.display = 'flex';
+        registerForm.style.display = 'none';
+        toggleText.textContent = "Don't have an account?";
+        toggleLink.textContent = "Register";
+      } else {
+        const data = await res.json();
+        document.getElementById('reg-error').textContent = data.error;
+      }
+    } catch (err) {
+      document.getElementById('reg-error').textContent = 'Registration failed.';
+    }
+  });
 </script>
+
 </body>
 </html>
 
