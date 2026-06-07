@@ -114,32 +114,32 @@ button:hover { background-color: #0066cc; }
          <script src="/socket.io/socket.io.js"></script>
 
          <script>
-
+console.log(someElement);  // if this prints null, the selector is wrong
             //authentication
             // read jwt from cookie
-            function getCookie(name) {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return parts.pop().split(';').shift();
-                
-            }
-            const token = getCookie('token');
+            // Check authentication and get user info
+let currentUsername;
 
-            if (!token) {
-                window.location.href = '/'; //not logged in , go to landing
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/me');
+    if (res.ok) {
+      const data = await res.json();
+      currentUsername = data.user.username;
+      document.getElementById('username-display').textContent = `Logged in as: ${currentUsername}`;
+    } else {
+      window.location.href = '/'; // redirect to login if not authenticated
+    }
+  } catch (err) {
+    window.location.href = '/';
+  }
+}
 
-            }
-            //decode the token to get username (or fetch /api/me)
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const currentUsername = payload.username; //from JWT
-            document.getElementById('username-display').textContent = `Logged in as: ${currentUsername}`;
-
+checkAuth();
+          
             // socket.io connection with token
 
-           const socket = io({
-            auth: { token } //server middleware will verify it
-            
-           }          );
+           const socket = io();
 
            //room prompt
            var roomCode = prompt("Enter a Chat Room Code (e.g., 'secret123' or 'roomA'):") || "public";
