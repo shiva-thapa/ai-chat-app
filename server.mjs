@@ -34,7 +34,7 @@ let db, usersCollection, messagesCollection;
 async function connectDB() {
   try {
     await client.connect();
-    db = client.db('chat-application');
+    db = client.db('chat_application');
     usersCollection = db.collection('users');
     messagesCollection = db.collection('messages');
     console.log('connected permanently to MongoDB Cloud Database!');
@@ -100,7 +100,7 @@ const token = jwt.sign(
 );
 res.cookie('token', token, {
   httpOnly: true,
-  secure: process.env.NODE_env === 'production',
+  secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax',
   maxAge: 7*24*60*60*1000, //7 days
 
@@ -188,13 +188,13 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log(`User ${socket.username} connected`);
 
-  socket.on('join room', async (roomnCode) => {
+  socket.on('join room', async (roomCode) => {
     socket.join(roomCode);
     socket.currentRoom = roomCode;
     console.log(`${socket.username} joined room: ${roomCode}`);
 
     try { 
-      const hisytory = await messagesCollection
+      const history = await messagesCollection
       .find({ room: roomCode })
       .sort({ timestamp: 1 })
       .toArray();
