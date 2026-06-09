@@ -272,5 +272,13 @@ async function startServer() {
   });
 }
 
+
+// Catch unhandled exceptions and rejections so they appear in logs
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 startServer();
 
