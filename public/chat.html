@@ -1,202 +1,323 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title> AI Chat App</title>
-<style>
-    * {box-sizing: border-box; margin: 0; padding: 0; } 
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-    background-color:#f0f2f5; 
-    display: flex; 
-    flex-direction: column;
-     height: 100vh; }
-    
+<head>
+    <title>AI Chat App</title>
+    <style>
+        * {box-sizing: border-box; margin: 0; padding: 0; } 
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background-color:#f0f2f5; 
+            display: flex; 
+            height: 100vh; 
+            overflow: hidden;
+        }
+        
+        /* sidebar  */
+        #sidebar {
+            width: 260px;
+            background: #ffffff;
+            border-right: 1px solid #ddd;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        #sidebar h3 {
+            font-size: 16px;
+            color: #050505;
+            margin-bottom: 5px;
+        }
+        #room-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .room-item {
+            padding: 10px;
+            background: #f0f2f5;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .room-item:hover {
+            background: #e4e6eb;
+        }
+        #sidebar input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccd0d5;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        #sidebar button {
+            width: 100%;
+            background: #0084ff;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        #sidebar button:hover {
+            background: #0066cc;
+        }
 
-     /*header bar*/
-   #top-bar {
-    background: white;
-    padding: 10 px 20px;
-    display: flex;justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #ddd;
-   }
+        /*main chat area*/
+        #chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
 
-   #username-display { font-weight: bold; }
-   #logout-btn {
-    background-color: #e4e6eb;
-    color: #050505;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
+        /*header bar*/
+        #top-bar {
+            background: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+        }
+        #current-room-name {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        #logout-btn {
+            background: #e4e6eb;
+            color: #050505;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #logout-btn:hover { background: #d8dadf; }
 
-   }
-   #logout-btn:hover { background-color: #d8dadf;}
+        /*summary ai boxx*/
+        #summary-box { 
+            background: #e3f2fd; 
+            border-left: 5px solid #2196f3;
+            padding: 15px; margin: 10px auto; 
+            width:95%; max-width: 600px; 
+            border-radius: 8px; 
+            font-style: italic; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            display: none; 
+        }
+        
+        /*the real main chat area*/
+        #messages { flex-grow: 1; 
+            overflow-y: auto; 
+            padding: 20px; max-width: 600px; 
+            width: 100%; margin: 0 auto; 
+            display: flex; 
+            flex-direction: column; gap: 10px; 
+            list-style: none; }
 
-   /*summary ai boxx*/
-    #summary-box { 
-        background: #e3f2fd; 
-        border-left: 5px solid #2196f3;
-         padding: 15px; margin: 10px auto; 
-         width:95%; max-width: 600px; 
-         border-radius: 8px; 
-         font-style: italic; 
-         box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-         display: none; }
-    
-    /*the real main chat area*/
-    #messages { flex-grow: 1; 
-        overflow-y: auto; 
-        padding: 20px; max-width: 600px; 
-        width: 100%; margin: 0 auto; 
-        display: flex; 
-        flex-direction: column; gap: 10px; 
-        list-style: none; }
+        /*the individual chat bubbleses*/
+        .message-wrapper { display: flex; 
+            flex-direction: column; max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 15px; line-height: 1.4; word-wrap: break-word; }
+        .my-msg { align-self: flex-end; background-color: #0084ff; color: white; border-bottom-left-radius: 4px; }
+        .other-msg { 
+            align-self: flex-start; 
+            background-color: #e4e6eb; color: #050505; border-bottom-left-radius: 4px; }
+        .msg-user { font-size: 11px; margin-bottom: 3px; 
+            font-weight: bold; opacity: 0.7; }
 
+        /*noww floating bottom kcontrol bar*/
+        .controls { 
+            background: white; 
+            padding: 10px; border-top: 1px solid #ddd; 
+            display: flex; flex-direction: column; 
+            gap: 8px; width: 100% }
+        .controls-inner { max-width: 600px; width: 100%; margin: 0 auto; display: flex; 
+            gap: 10px; }
 
-    /*the individual chat bubbleses*/
-    .message-wrapper { display: flex; 
-        flex-direction: column; max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 15px; line-height: 1.4; word-wrap: break-word; }
-    .my-msg { align-self: flex-end; background-color: #0084ff; color: white; border-bottom-left-radius: 4px; }
-    .other-msg { 
-        align-self: flex-start; 
-        background-color: #e4e6eb; color: #050505; border-bottom-left-radius: 4px; }
-    .msg-user { font-size: 11px; margin-bottom: 3px; 
-        font-weight: bold; opacity: 0.7; }
+        #form { flex-grow: 1; display: flex; gap: 8px; }
+        #input { 
+            flex-grow: 1; padding: 12px; border: 1px solid #ccd0d5; border-radius: 20px; 
+            outline: none; 
+            font-size: 15px; }
+        #input:focus { border-color: #0084ff; }
 
-/*noww floating bottom kcontrol bar*/
-.controls { 
-    background: white; 
-    padding: 10px; border-top: 1px solid #ddd; 
-    display: flex; flex-direction: column; 
-    gap: 8px; width: 100% }
-.controls-inner { max-width: 600px; width: 100%; margin: 0 auto; display: flex; 
-    gap: 10px; }
+        button { background-color: #0084ff; 
+            color: white; border: none; padding: 0 20px; border-radius: 20px; 
+            font-weight: bold; cursor: pointer; font-size: 14px; transition: background 0.2; }
+        button:hover { background-color: #0066cc; }
+        .ai-btn { background-color: #25d366; 
+            padding: 10px; }
+        .ai-btn:hover { background-color: #20ba5a; }
+    </style>
+</head>
+<body>
 
-#form { flex-grow: 1; display: flex; gap: 8px; }
-#input { 
-    flex-grow: 1; padding: 12px; border: 1px solid #ccd0d5; border-radius: 20px; 
-    outline: none; 
-    font-size: 15px; }
-#input:focus { border-color: #0084ff; }
+    <!-- sidebar with room management -->
+    <div id="sidebar">
+        <h3>💬 Rooms</h3>
+        <div id="room-list"></div>
+        <hr style="border: 0.5px solid #ddd; margin: 10px 0;">
+        
+        <h4>Create Room</h4>
+        <input id="new-room-code" placeholder="Room code (e.g. general)">
+        <input id="new-room-name" placeholder="Room name (optional)">
+        <button onclick="createRoom()">Create</button>
 
-button { background-color: #0084ff; 
-    color: white; border: none; padding: 0 20px; border-radius: 20px; 
-    font-weight: bold; cursor: pointer; font-size: 14px; transition: background 0.2; }
-button:hover { background-color: #0066cc; }
-.ai-btn { background-color: #25d366; 
-    padding: 10px; }
-.ai-btn:hover { background-color: #20ba5a; }
-</style>
-    </head>
-    <body>
+        <h4>Join Room</h4>
+        <input id="join-room-code" placeholder="Enter room code">
+        <button onclick="joinRoom()">Join</button>
+    </div>
 
-        <!--top bar with username an d logot-->
-<div id="top-bar">
-    <span id="username-display">Loading...</span>
-<button id="logout-btn">Logout</button>
-</div>
+    <!-- main chat area -->
+    <div id="chat-area">
+        <div id="top-bar">
+            <span id="current-room-name">Select a room</span>
+            <button id="logout-btn">Logout</button>
+        </div>
 
         <div id="summary-box"></div>
-         <ul id="messages"></ul>
+        <ul id="messages"></ul>
 
-         <div class="controls">
-     <div class="controls-inner">
-            <form id="form">
-         <input id="input" autocomplete="off" placeholder="Type a message..."/>
-         <button type="submit">Send</button>
-         </form>
-         <button class="ai-btn" onclick="requestSummary()">Summarize chat with ai</button>
+        <div class="controls">
+            <div class="controls-inner">
+                <form id="form">
+                    <input id="input" autocomplete="off" placeholder="Type a message..."/>
+                    <button type="submit">Send</button>
+                </form>
+                <button class="ai-btn" onclick="requestSummary()">Summarize chat with AI</button>
+            </div>
+        </div>
+    </div>
 
-         </div>
-          </div>
-         <!-- now this line will be pullin the socket io tools-->
-         <script src="/socket.io/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // ---------- Authentication ----------
+        let currentUsername;
 
-         <script>
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    currentUsername = data.user.username;
+                } else {
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                window.location.href = '/';
+            }
+        }
 
-            //authentication
-            // read jwt from cookie
-            // Check authentication and get user info
-let currentUsername;
+        checkAuth();
 
-async function checkAuth() {
-  try {
-    const res = await fetch('/api/me');
-    if (res.ok) {
-      const data = await res.json();
-      currentUsername = data.user.username;
-      document.getElementById('username-display').textContent = `Logged in as: ${currentUsername}`;
-    } else {
-      window.location.href = '/'; // redirect to login if not authenticated
-    }
-  } catch (err) {
-    window.location.href = '/';
-  }
-}
+        // ---------- Socket Setup ----------
+        const socket = io(); // cookie sent automatically
+        let currentRoomCode = null;
 
-checkAuth();
-          
-            // socket.io connection with token
+        // ---------- Room Management ----------
+        async function loadRooms() {
+            const res = await fetch('/api/rooms');
+            const data = await res.json();
+            const list = document.getElementById('room-list');
+            list.innerHTML = '';
+            data.rooms.forEach(room => {
+                const div = document.createElement('div');
+                div.className = 'room-item';
+                div.textContent = room.roomName || room.roomCode;
+                div.onclick = () => selectRoom(room.roomCode);
+                list.appendChild(div);
+            });
+        }
 
-           const socket = io();
+        // Select a room: update header, clear messages, emit join
+        function selectRoom(roomCode) {
+            currentRoomCode = roomCode;
+            document.getElementById('current-room-name').textContent = roomCode;
+            document.getElementById('messages').innerHTML = '';
+            socket.emit('join room', roomCode);
+        }
 
-           //room prompt
-           var roomCode = prompt("Enter a Chat Room Code (e.g., 'secret123' or 'roomA'):") || "public";
-           socket.emit('join room', roomCode);
+        async function createRoom() {
+            const roomCode = document.getElementById('new-room-code').value.trim();
+            const roomName = document.getElementById('new-room-name').value.trim();
+            if (!roomCode) return alert('Room code required');
+            const res = await fetch('/api/rooms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roomCode, roomName })
+            });
+            if (res.ok) {
+                loadRooms();
+                selectRoom(roomCode);
+            } else {
+                const data = await res.json();
+                alert(data.error);
+            }
+        }
 
-           //chat logic
+        async function joinRoom() {
+            const roomCode = document.getElementById('join-room-code').value.trim();
+            if (!roomCode) return alert('Enter a room code');
+            const res = await fetch(`/api/rooms/${roomCode}/join`, { method: 'POST' });
+            if (res.ok) {
+                loadRooms();
+                selectRoom(roomCode);
+            } else {
+                const data = await res.json();
+                alert(data.error);
+            }
+        }
 
-           var form = document.getElementById('form');
-           var input = document.getElementById('input');
-   
+        // Load rooms when page loads
+        loadRooms();
 
-          form.addEventListener('submit', (e) => {
+        // ---------- Chat Message Handling ----------
+        const form = document.getElementById('form');
+        const input = document.getElementById('input');
+
+        form.addEventListener('submit', (e) => {
             e.preventDefault();
-            if (input.value) {
-                //server will set user = currentUsername automatically
-                socket.emit('chat message', { text: input.value});
+            if (input.value && currentRoomCode) {
+                socket.emit('chat message', { text: input.value });
                 input.value = '';
             }
-           });
+        });
 
-           socket.on('chat message', (data) => {
-            var item = document.createElement('li');
-           
-           //lets check if the message belongs to you or someone else
-if (data.user === currentUsername) { 
-    item.className = "message-wrapper my-msg";
-
-} else {
-    item.className = "message-wrapper other-msg";
-}
-
-            item.innerHTML = `<div class="msg-user">${data.user}</div><div>${data.text}</div>`;          
-            
+        socket.on('chat message', (data) => {
+            const item = document.createElement('li');
+            if (data.user === currentUsername) {
+                item.className = 'message-wrapper my-msg';
+            } else {
+                item.className = 'message-wrapper other-msg';
+            }
+            item.innerHTML = `<div class="msg-user">${data.user}</div><div>${data.text}</div>`;
             const msgBox = document.getElementById('messages');
             msgBox.appendChild(item);
-
-            //automatically scroll down to newenst messages
             msgBox.scrollTop = msgBox.scrollHeight;
-            
-           });
+        });
 
-           function requestSummary() {
-            socket.emit('summarize');            
-           }
+        // ---------- AI Summary ----------
+        window.requestSummary = () => {
+            if (currentRoomCode) socket.emit('summarize');
+        };
 
-           socket.on('ai summary', (summary) => {
+        socket.on('ai summary', (summary) => {
             const box = document.getElementById('summary-box');
             box.style.display = 'block';
-            box.textContent = "AI Summary: " + summary;
-        
-           });
+            box.textContent = 'AI Summary: ' + summary;
+        });
 
-           //logout 
-           document.getElementById('logout-btn').addEventListener('click', async () => {
+        // ---------- Logout ----------
+        document.getElementById('logout-btn').addEventListener('click', async () => {
             await fetch('/api/logout', { method: 'POST' });
             window.location.href = '/';
-           });
-         </script>
-     </body>
-</html> 
+        });
+    </script>
+</body>
+</html>

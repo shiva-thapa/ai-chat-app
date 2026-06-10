@@ -1,4 +1,4 @@
-//dev fix
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -29,7 +29,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 //mongodb setup
 const client = new MongoClient(MONGO_URI);
-let db, usersCollection, messagesCollection;
+let db, usersCollection, messagesCollection, roomsCollection;
 
 async function connectDB() {
   try {
@@ -37,8 +37,13 @@ async function connectDB() {
     db = client.db('chat_application');
     usersCollection = db.collection('users');
     messagesCollection = db.collection('messages');
+    roomsCollection = db.collection('rooms');
+
     console.log('connected permanently to MongoDB Cloud Database!');
 
+    //creating unique index on roomCode optional but good
+    await roomsCollection.createIndex({ roomCode: 1 }, { unique: true });
+    
   } catch (error) {
     console.error('Database connection failed:', error);
     process.exit(1);
@@ -75,10 +80,12 @@ app.post('/api/register', async (req, res) => {
  res.status(201).json({ message: 'User registered successfully' });
 
   } catch (err) {
+    console.error('Registration error', err);
     res.status(500).json({ error: 'Registration failed' });
     
   }
 });
+
 //login
 app.post('/api/login', async (req,res) => {
   try {
@@ -100,7 +107,7 @@ const token = jwt.sign(
 );
 res.cookie('token', token, {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: process.env.NODE_ENV === 'production', //true on render
   sameSite: 'lax',
   maxAge: 7*24*60*60*1000, //7 days
 
@@ -109,6 +116,7 @@ res.json({ user: { id: user._id, username: user.username, email: user.email } })
 
 
   } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
 
   }
@@ -148,12 +156,90 @@ app.get('/chat', (req, res) => {
   }
 });
 
+//toom api routes
+//create a new room
+app.post('/api/rooms', async (req, res) => {
+  try {
+    const { roomCode, roomName } = req.body;
+    if (!roomCode) return res.status(400).json({ error: 'Room code required'});
+
+    const existing = await roomsCollection.findOne({ roomCode });
+    if (existing) return res.status(400).json({ error: 'Room already exists' });
+
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const creator = decoded.username;
+
+    await roomsCollection.insertOne({
+      roomCode,
+      roomName: roomName || roomCode,
+      creator,
+      members: [creator],
+      createdAt: new Date(),
+
+    });
+
+    res.status(201).json({ message: 'Room created' });
+      } catch (err) {
+        console.error('Room creation error:', err);
+        res.status(500).json({ error: 'Server error' });
+
+      }
+});
+
+//Join a room(by room code)
+app.post('/api/rooms/:roomCode/join', async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const username = decoded.username;
+  
+  const room = await roomsCollection.findOne({ roomcode });
+  if(!room) return res.status(404).json({ error: 'Room not found' });
+
+  if(!room.members.includes(username)) {
+    await roomsCollection.updateOne(
+      { rooCode },
+      { $addToSet: { members: username } }
+    );
+  }
+  res.json({ message: 'Joined room', roomCode });
+
+  } catch (err) {
+    console.error('Join room error', err);
+    res.status(500).json({ error: 'Server error' });
+
+  }
+});
+
+//list rooms the current user belongs to
+app.get('/api/rooms', async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const username = decoded.username;
+
+    const rooms = await roomsCollection.find({ members: username }).toArray();
+    res.json({ rooms });
+
+  } catch (err) {
+    console.error('List rooms error:', err);
+    res.status(500).json({ error: 'Server error' });
+
+  }
+});
+
+
 
 //socket.io authentication middleware
-/*
+
 io.use(async (socket, next) => {
   const rawCookies = socket.handshake.headers.cookie || '';
-  console.log('Socket auth – raw cookies:', rawCookies); // ADD THIS
+ 
   
   const cookies = rawCookies.split(';').map(c => c.trim());
   const tokenCookie = cookies.find(row => row.startsWith('token='));
@@ -164,7 +250,7 @@ io.use(async (socket, next) => {
   }
   
   const token = tokenCookie.split('=')[1];
-  console.log('Socket auth – token found, verifying...');
+  
   
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -177,22 +263,47 @@ io.use(async (socket, next) => {
     next(new Error('Invalid token'));
   }
 });
-*/
 
-io.use((socket, next) => {
-  // Temporary: skip auth to test connectivity
-  socket.username = 'test_user'; // dummy
-  next();
-});
+
 //socket.io events
 io.on('connection', (socket) => {
   console.log(`User ${socket.username} connected`);
 
+  //join room: auto-add member, leave previous, load history
+
   socket.on('join room', async (roomCode) => {
+    if (!roomCode) return;
+
+    //check if room exists, auto-join if user not a member
+    const room = await roomsCollection.findOne({ roomCode });
+    if (!room) {
+      socket.emit('error', 'Room not found');
+      return;
+
+    }
+    
+    const username = socket.username;
+    if (!room.members.includes(username)) {
+      await roomsCollection.updateOne(
+        { roomCode },
+        { $addToSet: { members: username } }
+
+      );
+    }
+
+
+    //leave previous room(s) if any
+    if (socket.currentRoom) {
+      socket.leave(socket.currentRoom);
+      
+    }
+    
     socket.join(roomCode);
     socket.currentRoom = roomCode;
-    console.log(`${socket.username} joined room: ${roomCode}`);
+    console.log(`${username} joined room: ${roomCode}`);
 
+
+    //send history
     try { 
       const history = await messagesCollection
       .find({ room: roomCode })
@@ -211,6 +322,9 @@ io.on('connection', (socket) => {
     }
   });
 
+
+  //chat message
+  
   socket.on('chat message', async (data) => {
     const room = socket.currentRoom;
     if (!room) return;
@@ -260,8 +374,23 @@ io.on('connection', (socket) => {
       
     }
   });
+
+  //cleanup on disconnect
+  socket.on('disconnect', () => {
+    console.log(`User ${socket.username} disconnected`);
+
+  });
 });
 
+
+//error handlin
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+ console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+
+});
 
 //start server
 async function startServer() {
@@ -272,13 +401,5 @@ async function startServer() {
   });
 }
 
-
-// Catch unhandled exceptions and rejections so they appear in logs
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-});
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
 startServer();
 
