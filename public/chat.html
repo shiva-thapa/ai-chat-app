@@ -154,11 +154,30 @@
         .ai-btn { background-color: #25d366; 
             padding: 10px; }
         .ai-btn:hover { background-color: #20ba5a; }
+
+
+        #dm-section { margin-top: 20px; }
+        #dm-list { display: flex; flex-direction: column; gap: 5px; }
+        .dm-item {
+            padding: 10px;
+            background: #f0f2f5;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+
+        }
+
+        .dm-item:hover { background: #e4e6eb; }
+        #new-dm-btn { margin-top: 10px; width: 100%; background: #25d366; }
+        #new-dm-btn:hover { background: #20ba5a; }
+        #user-select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ccd0d5; margin-top: 10px; }
+
     </style>
 </head>
 <body>
 
-    <!-- sidebar with room management -->
+    <!-- sidebar with room management and DM:: -->
     <div id="sidebar">
         <h3>💬 Rooms</h3>
         <div id="room-list"></div>
@@ -172,12 +191,25 @@
         <h4>Join Room</h4>
         <input id="join-room-code" placeholder="Enter room code">
         <button onclick="joinRoom()">Join</button>
+
+
+        <!-- direct messages section-->
+         <hr style="border: 0.5px solid #ddd; margin: 15px 0;">
+         <h3> Direct Messages</h3>
+         <div id="dm-list"></div>
+
+
+<button id="new-dm-btn" onclick="toggleUserPicker()">+New DM</button>
+<select id="user-select" style="display: none;" onchange="startDM(this.value)">
+    <option value="">Select a user...</option>
+</select>
+
     </div>
 
     <!-- main chat area -->
     <div id="chat-area">
         <div id="top-bar">
-            <span id="current-room-name">Select a room</span>
+            <span id="current-room-name">Select a room or DM</span>
             <button id="logout-btn">Logout</button>
         </div>
 
@@ -277,29 +309,128 @@
         // Load rooms when page loads
         loadRooms();
 
+
+        //dm management
+        async function loadConversations() {
+            const res = await fetch('/api/conversations');
+            const data = await res.json();
+            const list = document.getElementById('dm-list');
+            list.innerHTML = '';
+            data.conversations.forEach(conv => {
+                //show the other user's name
+                const otherUser = conv.participants.find(p => p !== currentUsername);
+                const div = document.createElement('div');
+                div.className = 'dm-item';
+                div.textContent = otherUser;
+                div.onclick = () => selectCoversation(conv.conversationId);
+                list.appendChild(div);
+
+            });
+        }
+
+async function loadUsers() {
+    const res = await fetch('/api/users');
+    const data = await res.json();
+    const select = document.getElementById('user-select');
+    select.innerHTML = '<option value="">Select a user...</option>';
+    data.users.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user;
+        option.textContent = user;
+        select.appendChild(option);
+
+    });
+}
+
+function toggleUserPicker() {
+    const select = document.getElementById('user-select');
+    if (select.style.display === 'none') {
+        loadUsers();
+        select.style.display = 'block';
+
+    } else {
+        select.style.display = 'none';
+
+    }
+}
+
+async function startDM(participant) {
+    if (!participant) return;
+const res = await fetch('/api/conversations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ participant })
+});
+if (res.ok) {
+    const data = await res.json();
+    loadConversations();
+    selectConversation(data.conversationId);
+    document.getElementById('user-select').style.display = 'none';
+} else {
+    alert('Failed to start DM');
+}
+
+}
+
+function selectConversation(conversationId) {
+    currentConversationId = conversationId;
+    currentRoomCode = null;
+    document.getElemntById('current-room-name').textcontent = 'DM with' + getOtherParticipant(conversationId);
+    document.getElementById('messages'.innerHTML = '';
+        document.getElementById('summary-box').style.display = 'none'; //no AI in DM yet
+        socket.emit('join conversation', conversationId);
+
+    
+
+}
+
+function getOtherParticipant(conversationId) {
+    //The conversation ID is like "user1_user2". We can extract the other username.
+    const parts = conversationId.split('_');
+    return parts.find(p => p !== currentUsername) || 'Unknown';
+
+} 
+
+
+
         // ---------- Chat Message Handling ----------
         const form = document.getElementById('form');
         const input = document.getElementById('input');
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            if (input.value && currentRoomCode) {
+            if (!input.value) return;
+            if (currentRoomCode) {
                 socket.emit('chat message', { text: input.value });
                 input.value = '';
+            } else if (currentConversationId) {
+                socket.emit('direct message', { conversationId: currentConversationId, text: input.value });
             }
+            input.value = '';
         });
 
+        //Listen for room messages
         socket.on('chat message', (data) => {
+            //Only display if we are in a room and the message matches
+            if (!currentRoomCode) return;
             const item = document.createElement('li');
-            if (data.user === currentUsername) {
-                item.className = 'message-wrapper my-msg';
-            } else {
-                item.className = 'message-wrapper other-msg';
-            }
+            item.className = `message-wrappper ${data.user === currentUsername ? 'my-msg' : 'other-msg'}`;
             item.innerHTML = `<div class="msg-user">${data.user}</div><div>${data.text}</div>`;
-            const msgBox = document.getElementById('messages');
-            msgBox.appendChild(item);
-            msgBox.scrollTop = msgBox.scrollHeight;
+            document.getElementById('messages').appendChild(item);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+
+        });
+
+        //listen for direct messages
+
+        socket.on('direct message', (data) => {
+//only display if it's for our current conversation
+if (data.conversationId !== currentConversationId) return;
+const item = document.createElement('li');
+item.className = `message-wrapper ${data.sender === currentUsername ? 'my-msg' : 'other-msg'}`;
+item.innerHTML = `<div class="msg-user">${data.sender}</div><div>${data.text}</div>`;
+document.getElementById('messages').appendchild(item);
+document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
         });
 
         // ---------- AI Summary ----------
@@ -318,6 +449,11 @@
             await fetch('/api/logout', { method: 'POST' });
             window.location.href = '/';
         });
+
+        //initial load
+
+        loadRooms();
+        loadConversations();
     </script>
 </body>
 </html>
