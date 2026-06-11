@@ -376,7 +376,7 @@ function selectConversation(conversationId) {
     currentConversationId = conversationId;
     currentRoomCode = null;
     document.getElemntById('current-room-name').textcontent = 'DM with' + getOtherParticipant(conversationId);
-    document.getElementById('messages'.innerHTML = '';
+    document.getElementById('messages').innerHTML = '';
         document.getElementById('summary-box').style.display = 'none'; //no AI in DM yet
         socket.emit('join conversation', conversationId);
 
