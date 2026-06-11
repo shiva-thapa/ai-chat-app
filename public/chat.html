@@ -229,231 +229,208 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // ---------- Authentication ----------
-        let currentUsername;
+           // ---------- Authentication ----------
+    let currentUsername;
 
-        async function checkAuth() {
-            try {
-                const res = await fetch('/api/me');
-                if (res.ok) {
-                    const data = await res.json();
-                    currentUsername = data.user.username;
-                } else {
-                    window.location.href = '/';
-                }
-            } catch (err) {
+    async function checkAuth() {
+        try {
+            const res = await fetch('/api/me');
+            if (res.ok) {
+                const data = await res.json();
+                currentUsername = data.user.username;
+            } else {
                 window.location.href = '/';
             }
-        }
-
-        checkAuth();
-
-        // ---------- Socket Setup ----------
-        const socket = io(); // cookie sent automatically
-        let currentRoomCode = null;
-
-        // ---------- Room Management ----------
-        async function loadRooms() {
-            const res = await fetch('/api/rooms');
-            const data = await res.json();
-            const list = document.getElementById('room-list');
-            list.innerHTML = '';
-            data.rooms.forEach(room => {
-                const div = document.createElement('div');
-                div.className = 'room-item';
-                div.textContent = room.roomName || room.roomCode;
-                div.onclick = () => selectRoom(room.roomCode);
-                list.appendChild(div);
-            });
-        }
-
-        // Select a room: update header, clear messages, emit join
-        function selectRoom(roomCode) {
-            currentRoomCode = roomCode;
-            document.getElementById('current-room-name').textContent = roomCode;
-            document.getElementById('messages').innerHTML = '';
-            socket.emit('join room', roomCode);
-        }
-
-        async function createRoom() {
-            const roomCode = document.getElementById('new-room-code').value.trim();
-            const roomName = document.getElementById('new-room-name').value.trim();
-            if (!roomCode) return alert('Room code required');
-            const res = await fetch('/api/rooms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ roomCode, roomName })
-            });
-            if (res.ok) {
-                loadRooms();
-                selectRoom(roomCode);
-            } else {
-                const data = await res.json();
-                alert(data.error);
-            }
-        }
-
-        async function joinRoom() {
-            const roomCode = document.getElementById('join-room-code').value.trim();
-            if (!roomCode) return alert('Enter a room code');
-            const res = await fetch(`/api/rooms/${roomCode}/join`, { method: 'POST' });
-            if (res.ok) {
-                loadRooms();
-                selectRoom(roomCode);
-            } else {
-                const data = await res.json();
-                alert(data.error);
-            }
-        }
-
-        // Load rooms when page loads
-        loadRooms();
-
-
-        //dm management
-        async function loadConversations() {
-            const res = await fetch('/api/conversations');
-            const data = await res.json();
-            const list = document.getElementById('dm-list');
-            list.innerHTML = '';
-            data.conversations.forEach(conv => {
-                //show the other user's name
-                const otherUser = conv.participants.find(p => p !== currentUsername);
-                const div = document.createElement('div');
-                div.className = 'dm-item';
-                div.textContent = otherUser;
-                div.onclick = () => selectCoversation(conv.conversationId);
-                list.appendChild(div);
-
-            });
-        }
-
-async function loadUsers() {
-    const res = await fetch('/api/users');
-    const data = await res.json();
-    const select = document.getElementById('user-select');
-    select.innerHTML = '<option value="">Select a user...</option>';
-    data.users.forEach(user => {
-        const option = document.createElement('option');
-        option.value = user;
-        option.textContent = user;
-        select.appendChild(option);
-
-    });
-}
-
-function toggleUserPicker() {
-    const select = document.getElementById('user-select');
-    if (select.style.display === 'none') {
-        loadUsers();
-        select.style.display = 'block';
-
-    } else {
-        select.style.display = 'none';
-
-    }
-}
-
-async function startDM(participant) {
-    if (!participant) return;
-const res = await fetch('/api/conversations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ participant })
-});
-if (res.ok) {
-    const data = await res.json();
-    loadConversations();
-    selectConversation(data.conversationId);
-    document.getElementById('user-select').style.display = 'none';
-} else {
-    alert('Failed to start DM');
-}
-
-}
-
-function selectConversation(conversationId) {
-    currentConversationId = conversationId;
-    currentRoomCode = null;
-    document.getElemntById('current-room-name').textcontent = 'DM with' + getOtherParticipant(conversationId);
-    document.getElementById('messages').innerHTML = '';
-        document.getElementById('summary-box').style.display = 'none'; //no AI in DM yet
-        socket.emit('join conversation', conversationId);
-
-    
-
-}
-
-function getOtherParticipant(conversationId) {
-    //The conversation ID is like "user1_user2". We can extract the other username.
-    const parts = conversationId.split('_');
-    return parts.find(p => p !== currentUsername) || 'Unknown';
-
-} 
-
-
-
-        // ---------- Chat Message Handling ----------
-        const form = document.getElementById('form');
-        const input = document.getElementById('input');
-
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (!input.value) return;
-            if (currentRoomCode) {
-                socket.emit('chat message', { text: input.value });
-                input.value = '';
-            } else if (currentConversationId) {
-                socket.emit('direct message', { conversationId: currentConversationId, text: input.value });
-            }
-            input.value = '';
-        });
-
-        //Listen for room messages
-        socket.on('chat message', (data) => {
-            //Only display if we are in a room and the message matches
-            if (!currentRoomCode) return;
-            const item = document.createElement('li');
-            item.className = `message-wrappper ${data.user === currentUsername ? 'my-msg' : 'other-msg'}`;
-            item.innerHTML = `<div class="msg-user">${data.user}</div><div>${data.text}</div>`;
-            document.getElementById('messages').appendChild(item);
-            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
-
-        });
-
-        //listen for direct messages
-
-        socket.on('direct message', (data) => {
-//only display if it's for our current conversation
-if (data.conversationId !== currentConversationId) return;
-const item = document.createElement('li');
-item.className = `message-wrapper ${data.sender === currentUsername ? 'my-msg' : 'other-msg'}`;
-item.innerHTML = `<div class="msg-user">${data.sender}</div><div>${data.text}</div>`;
-document.getElementById('messages').appendchild(item);
-document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
-        });
-
-        // ---------- AI Summary ----------
-        window.requestSummary = () => {
-            if (currentRoomCode) socket.emit('summarize');
-        };
-
-        socket.on('ai summary', (summary) => {
-            const box = document.getElementById('summary-box');
-            box.style.display = 'block';
-            box.textContent = 'AI Summary: ' + summary;
-        });
-
-        // ---------- Logout ----------
-        document.getElementById('logout-btn').addEventListener('click', async () => {
-            await fetch('/api/logout', { method: 'POST' });
+        } catch (err) {
             window.location.href = '/';
+        }
+    }
+    checkAuth();
+
+    // ---------- Socket Setup ----------
+    const socket = io(); // cookie sent automatically
+    let currentRoomCode = null;
+    let currentConversationId = null;   // <--- ADDED
+
+    // ---------- Room Management ----------
+    async function loadRooms() {
+        const res = await fetch('/api/rooms');
+        const data = await res.json();
+        const list = document.getElementById('room-list');
+        list.innerHTML = '';
+        data.rooms.forEach(room => {
+            const div = document.createElement('div');
+            div.className = 'room-item';
+            div.textContent = room.roomName || room.roomCode;
+            div.onclick = () => selectRoom(room.roomCode);
+            list.appendChild(div);
         });
+    }
 
-        //initial load
+    function selectRoom(roomCode) {
+        currentRoomCode = roomCode;
+        currentConversationId = null;   // clear DM
+        document.getElementById('current-room-name').textContent = roomCode;
+        document.getElementById('messages').innerHTML = '';
+        socket.emit('join room', roomCode);
+    }
 
-        loadRooms();
-        loadConversations();
+    async function createRoom() {
+        const roomCode = document.getElementById('new-room-code').value.trim();
+        const roomName = document.getElementById('new-room-name').value.trim();
+        if (!roomCode) return alert('Room code required');
+        const res = await fetch('/api/rooms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roomCode, roomName })
+        });
+        if (res.ok) {
+            loadRooms();
+            selectRoom(roomCode);
+        } else {
+            const data = await res.json();
+            alert(data.error);
+        }
+    }
+
+    async function joinRoom() {
+        const roomCode = document.getElementById('join-room-code').value.trim();
+        if (!roomCode) return alert('Enter a room code');
+        const res = await fetch(`/api/rooms/${roomCode}/join`, { method: 'POST' });
+        if (res.ok) {
+            loadRooms();
+            selectRoom(roomCode);
+        } else {
+            const data = await res.json();
+            alert(data.error);
+        }
+    }
+
+    // DM Management
+    async function loadConversations() {
+        const res = await fetch('/api/conversations');
+        const data = await res.json();
+        const list = document.getElementById('dm-list');
+        list.innerHTML = '';
+        data.conversations.forEach(conv => {
+            const otherUser = conv.participants.find(p => p !== currentUsername);
+            const div = document.createElement('div');
+            div.className = 'dm-item';
+            div.textContent = otherUser;
+            div.onclick = () => selectConversation(conv.conversationId);  // fixed typo
+            list.appendChild(div);
+        });
+    }
+
+    async function loadUsers() {
+        const res = await fetch('/api/users');
+        const data = await res.json();
+        const select = document.getElementById('user-select');
+        select.innerHTML = '<option value="">Select a user...</option>';
+        data.users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user;
+            option.textContent = user;
+            select.appendChild(option);
+        });
+    }
+
+    function toggleUserPicker() {
+        const select = document.getElementById('user-select');
+        if (select.style.display === 'none') {
+            loadUsers();
+            select.style.display = 'block';
+        } else {
+            select.style.display = 'none';
+        }
+    }
+
+    async function startDM(participant) {
+        if (!participant) return;
+        const res = await fetch('/api/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ participant })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            loadConversations();
+            selectConversation(data.conversationId);
+            document.getElementById('user-select').style.display = 'none';
+        } else {
+            alert('Failed to start DM');
+        }
+    }
+
+    function selectConversation(conversationId) {
+        currentConversationId = conversationId;
+        currentRoomCode = null;
+        document.getElementById('current-room-name').textContent = 'DM with ' + getOtherParticipant(conversationId);  // fixed typo
+        document.getElementById('messages').innerHTML = '';
+        document.getElementById('summary-box').style.display = 'none';
+        socket.emit('join conversation', conversationId);
+    }
+
+    function getOtherParticipant(conversationId) {
+        const parts = conversationId.split('_');
+        return parts.find(p => p !== currentUsername) || 'Unknown';
+    }
+
+    // ---------- Chat Message Handling ----------
+    const form = document.getElementById('form');
+    const input = document.getElementById('input');
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!input.value) return;
+        if (currentRoomCode) {
+            socket.emit('chat message', { text: input.value });
+        } else if (currentConversationId) {
+            socket.emit('direct message', { conversationId: currentConversationId, text: input.value });
+        }
+        input.value = '';
+    });
+
+    // Listen for room messages
+    socket.on('chat message', (data) => {
+        if (!currentRoomCode) return;
+        const item = document.createElement('li');
+        item.className = `message-wrapper ${data.user === currentUsername ? 'my-msg' : 'other-msg'}`;  // fixed typo
+        item.innerHTML = `<div class="msg-user">${data.user}</div><div>${data.text}</div>`;
+        document.getElementById('messages').appendChild(item);
+        document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+    });
+
+    // Listen for direct messages
+    socket.on('direct message', (data) => {
+        if (data.conversationId !== currentConversationId) return;
+        const item = document.createElement('li');
+        item.className = `message-wrapper ${data.sender === currentUsername ? 'my-msg' : 'other-msg'}`;
+        item.innerHTML = `<div class="msg-user">${data.sender}</div><div>${data.text}</div>`;
+        document.getElementById('messages').appendChild(item);  // fixed typo
+        document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+    });
+
+    // ---------- AI Summary ----------
+    window.requestSummary = () => {
+        if (currentRoomCode) socket.emit('summarize');
+    };
+
+    socket.on('ai summary', (summary) => {
+        const box = document.getElementById('summary-box');
+        box.style.display = 'block';
+        box.textContent = 'AI Summary: ' + summary;
+    });
+
+    // ---------- Logout ----------
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/';
+    });
+
+    // Initial load
+    loadRooms();
+    loadConversations();
     </script>
 </body>
 </html>
