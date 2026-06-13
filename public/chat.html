@@ -204,6 +204,9 @@
 
     /* Bottom controls */
     .controls {
+    position: sticky;
+    bottom: 0;
+    padding-bottom: env(sage-area-inset-bottom, 10px); 
       background: white;
       padding: 10px;
       border-top: 1px solid #ddd;
@@ -281,7 +284,7 @@
   <!-- Main chat area -->
   <div id="chat-area">
     <div id="top-bar">
-      <button id="hamburger" onclick="toggleSidebar()">☰</button>
+      <button id="hamburger" onclick="toggleSidebar()">Menu</button>
       <span id="current-room-name">Select a room or DM</span>
       <button id="logout-btn">Logout</button>
     </div>
