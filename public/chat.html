@@ -2,7 +2,9 @@
 <html>
 <head>
   <title>AI Chat App</title>
+ 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+   <link rel="manifest" href="/manifest.json">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -331,6 +333,16 @@
       }
     }
     checkAuth();
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          console.log('Service Worker registered');
+
+        
+      }).catch(err => console.log('SW registration failed:', err));
+    });
+  }
 
     // ---------- Socket Setup ----------
     const socket = io();
